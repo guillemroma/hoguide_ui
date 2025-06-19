@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart'; // Importa la HomeScreen
+import '../features/home/view/home_screen.dart';
 import 'signup_screen.dart'; // Sigue siendo necesario para la navegación a registro
 import '../services/auth_service.dart'; // Asumiendo que esta es la ruta correcta
 

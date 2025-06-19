@@ -1,6 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'home_screen.dart'; // Importa la HomeScreen
-import '../services/auth_service.dart'; // Ruta corregida
+import 'package:intl/intl.dart';
+
+import '../features/home/view/home_screen.dart';
+import '../../../services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -10,40 +13,60 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  // Controladores para los campos de texto
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _birthdayController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+
+  // Variables de estado para los nuevos campos y la UI
+  String? _selectedGender; // 'Hombre' o 'Mujer'
+  int _selectedHeight = 170; // Altura inicial por defecto
+  DateTime? _selectedBirthday;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _isLoading = false; // Estado para el indicador de carga
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _birthdayController.dispose();
+    _heightController.dispose();
     super.dispose();
   }
 
   Future<void> _signUp() async {
-    // Validación básica
+    // Validación de campos
     if (_emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, rellena todos los campos.')),
+        const SnackBar(content: Text('Por favor, rellena tu correo y contraseña.')),
       );
       return;
     }
-
+    if (_selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona tu género.')),
+      );
+      return;
+    }
+    if (_selectedBirthday == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona tu fecha de nacimiento.')),
+      );
+      return;
+    }
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Las contraseñas no coinciden.')),
       );
       return;
     }
-
     if (_passwordController.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('La contraseña debe tener al menos 8 caracteres.')),
@@ -51,7 +74,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // Activar el indicador de carga
     setState(() {
       _isLoading = true;
     });
@@ -59,11 +81,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
     try {
       final String email = _emailController.text;
       final String password = _passwordController.text;
+      final String birthdayString = DateFormat('yyyy-MM-dd').format(_selectedBirthday!);
 
-      // ¡Aquí está la llamada real a la API!
-      final Map<String, dynamic> result = await AuthService.register(email, password);
+      final Map<String, dynamic> result = await AuthService.register(
+        email,
+        password,
+        _selectedGender!,
+        _selectedHeight,
+        birthdayString,
+      );
 
-      // Desactivar el indicador de carga
+      if (!mounted) return;
+
       setState(() {
         _isLoading = false;
       });
@@ -72,7 +101,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message'] ?? '¡Cuenta creada exitosamente!')),
         );
-        // Redirige a HomeScreen y reemplaza la ruta actual para que el usuario no pueda volver al registro.
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
@@ -82,14 +110,59 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       }
     } catch (e) {
-      // Desactivar el indicador de carga en caso de error inesperado
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ocurrió un error inesperado: $e')),
-      );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ocurrió un error inesperado: $e')),
+        );
+      }
     }
+  }
+
+  Future<void> _selectBirthday(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedBirthday ?? DateTime(2000),
+      firstDate: DateTime(1920),
+      lastDate: DateTime.now(),
+      locale: const Locale('es', 'ES'),
+    );
+    if (picked != null && picked != _selectedBirthday) {
+      setState(() {
+        _selectedBirthday = picked;
+        _birthdayController.text = DateFormat.yMMMMd('es').format(picked);
+      });
+    }
+  }
+
+  void _showHeightPicker() {
+    _heightController.text = '$_selectedHeight cm';
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SizedBox(
+          height: 250,
+          child: CupertinoPicker(
+            itemExtent: 40,
+            scrollController:
+                FixedExtentScrollController(initialItem: _selectedHeight - 120),
+            onSelectedItemChanged: (int index) {
+              setState(() {
+                _selectedHeight = index + 120;
+                _heightController.text = '${index + 120} cm';
+              });
+            },
+            children: List<Widget>.generate(101, (int index) {
+              return Center(
+                child: Text('${index + 120} cm'),
+              );
+            }),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -101,9 +174,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(height: MediaQuery.of(context).size.height * 0.08), // Un poco menos de espacio superior para más campos
-
-            // Título Principal
+            SizedBox(height: MediaQuery.of(context).size.height * 0.08),
             Text(
               'Crea tu Cuenta',
               style: Theme.of(context).textTheme.headlineMedium!.copyWith(
@@ -113,17 +184,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8.0),
-            // Subtítulo
             Text(
-              'Completa la información para empezar tu viaje hacia el bienestar.',
+              'Completa la información para empezar tu viaje.',
               style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                     color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6),
                   ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 48.0),
-
-            // Contenedor de campos de entrada
+            const SizedBox(height: 32.0),
             Container(
               padding: const EdgeInsets.all(24.0),
               decoration: BoxDecoration(
@@ -139,94 +207,184 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               child: Column(
                 children: [
-                  // Campo de Correo Electrónico
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: 'Correo Electrónico',
                       hintText: 'ejemplo@dominio.com',
-                      prefixIcon: Icon(Icons.email_outlined, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.0)),
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
+                      prefixIcon: Icon(Icons.email_outlined,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.2))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2.0)),
                     ),
-                    style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
                   ),
                   const SizedBox(height: 24.0),
-
-                  // Campo de Contraseña
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       hintText: 'Mínimo 8 caracteres',
-                      prefixIcon: Icon(Icons.lock_outline, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                      prefixIcon: Icon(Icons.lock_outline,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6)),
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
+                        icon: Icon(_obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
                         onPressed: () {
                           setState(() {
                             _obscurePassword = !_obscurePassword;
                           });
                         },
                       ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.0)),
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.2))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2.0)),
                     ),
-                    style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
                   ),
                   const SizedBox(height: 24.0),
-
-                  // Campo de Confirmar Contraseña
                   TextField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
-                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
                       labelText: 'Confirmar Contraseña',
                       hintText: 'Repite tu contraseña',
-                      prefixIcon: Icon(Icons.lock_outline, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                      prefixIcon: Icon(Icons.lock_outline,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6)),
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
+                        icon: Icon(_obscureConfirmPassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
                         onPressed: () {
                           setState(() {
                             _obscureConfirmPassword = !_obscureConfirmPassword;
                           });
                         },
                       ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.0)),
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.2))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2.0)),
                     ),
-                    style: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                  ),
+                  const Divider(height: 48.0, thickness: 1.0),
+                  Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Género',
+                          style: Theme.of(context).textTheme.labelLarge)),
+                  const SizedBox(height: 8.0),
+                  ToggleButtons(
+                    isSelected: [
+                      _selectedGender == 'Hombre',
+                      _selectedGender == 'Mujer',
+                    ],
+                    onPressed: (int index) {
+                      setState(() {
+                        _selectedGender = index == 0 ? 'Hombre' : 'Mujer';
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8.0),
+                    constraints: BoxConstraints(
+                      minHeight: 48.0,
+                      minWidth:
+                          (MediaQuery.of(context).size.width - 100) / 2,
+                    ),
+                    children: const [
+                      Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text('Hombre')),
+                      Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text('Mujer')),
+                    ],
+                  ),
+                  const SizedBox(height: 24.0),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _heightController,
+                          readOnly: true,
+                          onTap: _showHeightPicker,
+                          decoration: const InputDecoration(
+                            labelText: 'Altura',
+                            hintText: '170 cm',
+                            prefixIcon: Icon(Icons.height),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16.0),
+                      Expanded(
+                        child: TextField(
+                          controller: _birthdayController,
+                          readOnly: true,
+                          onTap: () => _selectBirthday(context),
+                          decoration: const InputDecoration(
+                            labelText: 'Nacimiento',
+                            hintText: 'Seleccionar fecha',
+                            prefixIcon: Icon(Icons.calendar_today),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 32.0),
-
-            // Botón "Registrarse"
             ElevatedButton(
-              onPressed: _isLoading ? null : _signUp, // Deshabilitar el botón mientras carga
+              onPressed: _isLoading ? null : _signUp,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 18.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24.0, vertical: 18.0),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(999.0),
                 ),
@@ -238,24 +396,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 minimumSize: const Size(double.infinity, 56),
               ),
               child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white) // Indicador de carga
+                  ? const CircularProgressIndicator(color: Colors.white)
                   : const Text('Registrarse'),
             ),
             const SizedBox(height: 32.0),
-
-            // "¿Ya tienes una cuenta? Inicia sesión"
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   '¿Ya tienes una cuenta? ',
                   style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                        color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onBackground
+                            .withOpacity(0.7),
                       ),
                 ),
                 InkWell(
                   onTap: () {
-                    print('Navegar a pantalla de inicio de sesión');
                     Navigator.of(context).pop();
                   },
                   child: Text(
@@ -269,7 +427,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ],
             ),
-            SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 24.0 : 0),
+            SizedBox(
+                height: MediaQuery.of(context).viewInsets.bottom > 0 ? 24.0 : 0),
           ],
         ),
       ),
