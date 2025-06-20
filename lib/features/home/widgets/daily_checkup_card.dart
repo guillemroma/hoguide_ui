@@ -20,40 +20,43 @@ class DailyCheckupCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '¿Listo para rellenar tu cuestionario diario?',
-            style: Theme.of(context).textTheme.headlineSmall!.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          // Fila que contiene el título principal y el nuevo botón de icono.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  '¿Listo para rellenar tu cuestionario diario?',
+                  style: Theme.of(context).textTheme.headlineSmall!.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                 ),
+              ),
+              const SizedBox(width: 16),
+              // El nuevo botón de icono circular.
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  onPressed: onFillForm,
+                  icon: const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                  ),
+                  tooltip: 'Rellenar cuestionario',
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8.0),
+          const SizedBox(height: 16.0),
           Text(
             'Gana 2 Hopoints y acércate a tus metas. Solo te tomará 2 minutos.',
             style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   color: Colors.white.withOpacity(0.8),
                 ),
-          ),
-          const SizedBox(height: 24.0),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton(
-              onPressed: onFillForm,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.indigo.shade600,
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 18.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                textStyle: Theme.of(context).textTheme.headlineSmall!.copyWith(
-                  color: Colors.indigo.shade600,
-                  fontWeight: FontWeight.bold,
-                ),
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text('Rellenar'),
-            ),
           ),
         ],
       ),
