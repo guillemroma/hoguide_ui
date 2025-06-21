@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../features/questionnaire/models/question_model.dart';
 
 // --- MODELS ---
 
@@ -234,6 +235,63 @@ class AuthService {
     } catch (e) {
       print('Excepción al obtener greeting: $e');
       return null;
+    }
+  }
+
+  // --- QUESTIONNAIRE ---
+
+  static Future<Map<String, dynamic>> getQuestions(String vertical) async {
+    final String? token = await getToken();
+    if (token == null) return {'success': false, 'message': 'No autenticado', 'requiresAuth': true};
+
+    final Uri url = Uri.parse('$_apiBaseUrl/questions?vertical=$vertical');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> decodedBody = jsonDecode(response.body);
+        // Parseamos la lista de preguntas que viene en la clave "general_questions"
+        final List<dynamic> questionData = decodedBody['general_questions'] ?? [];
+        final List<Question> questions = questionData.map((data) => Question.fromJson(data as Map<String, dynamic>)).toList();
+        return {'success': true, 'data': questions};
+      } else {
+        return {'success': false, 'message': 'Error obteniendo preguntas: ${response.statusCode}', 'requiresAuth': response.statusCode == 401};
+      }
+    } catch (e) {
+      print('Excepción al obtener preguntas: $e');
+      return {'success': false, 'message': 'Excepción al obtener preguntas: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> postAnswers(Map<String, dynamic> payload) async {
+    final String? token = await getToken();
+    if (token == null) return {'success': false, 'message': 'No autenticado', 'requiresAuth': true};
+
+    final Uri url = Uri.parse('$_apiBaseUrl/answers');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(payload),
+      );
+
+      // Consideramos éxito tanto 200 (OK) como 201 (Created)
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'success': true, 'data': jsonDecode(response.body)};
+      } else {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage = errorBody['error'] ?? 'Error desconocido al enviar las respuestas.';
+        return {'success': false, 'message': errorMessage, 'requiresAuth': response.statusCode == 401};
+      }
+    } catch (e) {
+      print('Excepción al enviar respuestas: $e');
+      return {'success': false, 'message': 'Ocurrió un error inesperado. Revisa tu conexión.'};
     }
   }
 }
