@@ -34,8 +34,7 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
   List<Question> _questions = [];
   String? _errorMessage;
   final Map<int, dynamic> _answers = {};
-
-  // AJUSTE (1): Acortamos la lista de secciones
+  
   final List<String> sections = const ['sueño', 'ejercicio', 'nutricion', 'bienestar_emocional'];
 
   @override
@@ -50,6 +49,8 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
       setState(() {
         if (result['success']) {
           _questions = result['data'];
+          // NOVEDAD: Inicializamos las respuestas con valores por defecto
+          _initializeAnswers(); 
         } else {
           _errorMessage = result['message'];
         }
@@ -58,7 +59,32 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     }
   }
 
-  // --- MÉTODOS PARA MANEJAR RESPUESTAS ---
+  // NOVEDAD: Este método pre-carga el mapa de respuestas
+  void _initializeAnswers() {
+    for (var question in _questions) {
+      switch (question.answerType) {
+        case 'duration':
+          // El rodillo empezará en 0 horas y 0 minutos
+          _answers[question.id] = _TimeDuration(0, 0);
+          break;
+        case 'slider':
+          // El slider empezará en 0.0
+          _answers[question.id] = 0.0;
+          break;
+        case 'text_form_field':
+          _answers[question.id] = '';
+          break;
+        case 'checkbox':
+          _answers[question.id] = <String>{};
+          break;
+        default:
+          // Para otros tipos, no asignamos valor por defecto
+          break;
+      }
+    }
+  }
+
+  // --- MÉTODOS PARA MANEJAR RESPUESTAS (sin cambios) ---
 
   void _handleSliderChange(int questionId, double value) {
     setState(() { _answers[questionId] = value; });
@@ -67,11 +93,8 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
   void _handleCheckboxChange(int questionId, bool? isSelected, String option) {
     setState(() {
       final currentAnswers = _answers.putIfAbsent(questionId, () => <String>{});
-      if (isSelected == true) {
-        currentAnswers.add(option);
-      } else {
-        currentAnswers.remove(option);
-      }
+      if (isSelected == true) { currentAnswers.add(option); } 
+      else { currentAnswers.remove(option); }
     });
   }
   
@@ -83,22 +106,20 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
   
   void _handleDurationChange(int questionId, {int? hours, int? minutes}) {
     setState(() {
-      final currentValue = _answers.putIfAbsent(questionId, () => _TimeDuration(0, 0)) as _TimeDuration;
+      final currentValue = _answers[questionId] as _TimeDuration;
       if (hours != null) { currentValue.hours = hours; }
       if (minutes != null) { currentValue.minutes = minutes; }
     });
   }
 
-  // NOVEDAD (2): Handler para el campo de texto libre
   void _handleTextChange(int questionId, String value) {
-    setState(() {
-      _answers[questionId] = value;
-    });
+    setState(() { _answers[questionId] = value; });
   }
 
-  // --- LÓGICA DE NAVEGACIÓN Y ENVÍO FINAL ---
+  // --- LÓGICA DE NAVEGACIÓN Y ENVÍO FINAL (sin cambios) ---
   
   void _onNext() async {
+    // ... (Este método no necesita cambios)
     final currentIndex = sections.indexOf(widget.vertical);
     final isLastSection = currentIndex == sections.length - 1;
 
@@ -112,7 +133,7 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
       } else if (answerValue is _TimeDuration) {
         final double totalHours = answerValue.hours + (answerValue.minutes / 60.0);
         content = [totalHours.toStringAsFixed(2)];
-      } else if (answerValue is String && answerValue.isNotEmpty) { // NOVEDAD (2): Formateo para texto
+      } else if (answerValue is String && answerValue.isNotEmpty) {
         content = [answerValue];
       }
       
@@ -131,7 +152,7 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
 
     if (!isLastSection) {
       final nextSection = sections[currentIndex + 1];
-      final nextProgress = '${currentIndex + 3}/${sections.length}';
+      final nextProgress = '${currentIndex + 3}/5';
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => QuestionSectionScreen(
@@ -164,6 +185,7 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
 
   // --- WIDGETS DE UI ---
 
+  // ... (build, _buildBody, _buildQuestionWidget y otros no necesitan cambios)
   @override
   Widget build(BuildContext context) {
     final isLastSection = sections.indexOf(widget.vertical) == sections.length - 1;
@@ -206,8 +228,6 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
 
   Widget _buildQuestionWidget(Question question) {
     Widget questionInput;
-    
-    // NOVEDAD (2): Añadimos el caso para "text_from_field"
     if (question.answerType == 'text_form_field') {
       questionInput = _buildTextFieldQuestion(question);
     } else if (question.answerType == 'duration') {
@@ -223,7 +243,6 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     } else {
       questionInput = Text('Tipo de pregunta no soportado: ${question.answerType}');
     }
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 24.0),
       child: Column(
@@ -237,7 +256,6 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     );
   }
 
-  // NOVEDAD (2): Widget para el campo de texto
   Widget _buildTextFieldQuestion(Question question) {
     return TextFormField(
       initialValue: _answers[question.id] as String?,
@@ -250,11 +268,11 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     );
   }
 
-  // ... resto de widgets constructores de preguntas (_buildDurationPicker, etc.) sin cambios
-  
+  // AJUSTE: El rodillo ahora lee el valor inicial del mapa _answers
   Widget _buildDurationPicker(Question question) {
     final theme = Theme.of(context);
-    final currentValue = _answers.putIfAbsent(question.id, () => _TimeDuration(7, 30)) as _TimeDuration;
+    // Ya no usamos putIfAbsent, el valor está garantizado
+    final currentValue = _answers[question.id] as _TimeDuration;
 
     final hoursController = FixedExtentScrollController(initialItem: currentValue.hours);
     final minutesController = FixedExtentScrollController(initialItem: currentValue.minutes);
@@ -270,12 +288,20 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     );
   }
 
+  // AJUSTE: El slider ahora empieza en 0 y lee el valor del mapa _answers
   Widget _buildSliderQuestion(Question question) {
-    final currentValue = _answers[question.id] as double? ?? 5.0;
+    // El valor está garantizado, ya no necesitamos un valor por defecto aquí
+    final currentValue = _answers[question.id] as double;
     return Row(
       children: [
         Expanded(
-          child: Slider( value: currentValue, min: 1, max: 10, divisions: 9, label: currentValue.toStringAsFixed(1), onChanged: (value) => _handleSliderChange(question.id, value),
+          child: Slider(
+            value: currentValue,
+            min: 0, // El slider ahora empieza en 0
+            max: 10,
+            divisions: 10,
+            label: currentValue.toStringAsFixed(1),
+            onChanged: (value) => _handleSliderChange(question.id, value),
           ),
         ),
         Text(currentValue.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -284,7 +310,7 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
   }
 
   Widget _buildCheckboxQuestion(Question question) {
-    final currentSelections = _answers[question.id] as Set<String>? ?? <String>{};
+    final currentSelections = _answers[question.id] as Set<String>;
     return Column(
       children: question.options.map((option) {
         return CheckboxListTile( title: Text(option), value: currentSelections.contains(option), onChanged: (isSelected) => _handleCheckboxChange(question.id, isSelected, option), controlAffinity: ListTileControlAffinity.leading, contentPadding: EdgeInsets.zero,

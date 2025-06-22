@@ -1,3 +1,5 @@
+// lib/features/home/widgets/patterns_card.dart
+
 import 'package:flutter/material.dart';
 import '../../../common/widgets/dashboard_card.dart';
 
@@ -11,6 +13,7 @@ class PatternsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // La acción de onTap ya se está aplicando a la tarjeta entera, lo cual es perfecto.
     return DashboardCard(
       onTap: onTap,
       child: Row(
@@ -55,7 +58,8 @@ class PatternsCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              onPressed: onTap,
+              // AJUSTE: Cambiamos onTap por null para que el botón no sea interactivo.
+              onPressed: null,
               icon: Icon(Icons.arrow_forward, color: Colors.purple.shade700),
               tooltip: 'Ver Patrones',
             ),

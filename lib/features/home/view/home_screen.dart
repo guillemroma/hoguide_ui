@@ -38,22 +38,17 @@ class _HomeScreenState extends State<HomeScreen> {
   int _questionnaireCount = 0;
   Greeting? _greeting;
   String? _errorMessage;
+  // NOVEDAD: Nuevo estado para controlar la visibilidad de la tarjeta
+  bool _isQuestionnaireAvailable = false;
 
-  // Controlador para la animación de confeti
   late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
-    // Inicializamos el controlador
     _confettiController = ConfettiController(duration: const Duration(seconds: 1));
-
     _loadInitialData();
-
-    // Si se nos indica desde el constructor, mostramos el diálogo de éxito
     if (widget.showSuccessDialog) {
-      // Usamos un delay para asegurar que la pantalla está completamente construida
-      // antes de mostrar un diálogo sobre ella.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showQuestionnaireSuccessDialog();
       });
@@ -62,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    // Es muy importante liberar los recursos del controlador para evitar fugas de memoria
     _confettiController.dispose();
     super.dispose();
   }
@@ -75,18 +69,24 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     
+    // AJUSTE: Añadimos la nueva llamada a la API a Future.wait
     final results = await Future.wait([
       AuthService.getUserStats(),
       AuthService.getGreeting(token),
+      AuthService.checkQuestionnaireAvailability(), // <-- Llamada nueva
     ]);
     
     final userStatsResult = results[0] as Map<String, dynamic>;
     final greetingResult = results[1] as Greeting?;
+    // NOVEDAD: Obtenemos el resultado de la nueva llamada
+    final questionnaireAvailableResult = results[2] as bool;
 
     if (mounted) {
       setState(() {
         _authToken = token;
         _greeting = greetingResult;
+        // NOVEDAD: Actualizamos el nuevo estado
+        _isQuestionnaireAvailable = questionnaireAvailableResult;
 
         if (userStatsResult['success']) {
           final data = userStatsResult['data'];
@@ -104,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   
   // --- UI ACTIONS & HELPERS ---
+  // ... (los métodos _handleApiError, _launchURL, _onFillDailyForm, etc. no cambian)
   void _handleApiError(Map<String, dynamic> result, String defaultMessage) {
     if (result['requiresAuth'] == true) {
       AuthService.logout().then((_) {
@@ -126,17 +127,23 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
   
-  void _onFillDailyForm() {
-    // Navegamos a la primera pantalla del cuestionario
-    Navigator.of(context).push(
+  Future<void> _onFillDailyForm() async {
+    // 1. Espera a que la pantalla del cuestionario se cierre
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => const DateSelectionScreen()),
     );
+
+    // 2. Recarga los datos en segundo plano, SIN la línea setState que causa el parpadeo
+    await _loadInitialData();
   }
 
-  void _onNavigateToPatterns() {
-    Navigator.of(context).push(
+  Future<void> _onNavigateToPatterns() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => const PatternsScreen()),
     );
+
+    // Hacemos lo mismo aquí.
+    await _loadInitialData();
   }
 
   void _showQuestionnaireSuccessDialog() {
@@ -163,7 +170,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         tooltip: 'Cerrar',
                       ),
                     ),
-                    // AJUSTE (4): Reemplazamos Icon por SvgPicture
                     SvgPicture.string(
                       '''<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"></path></svg>''',
                       colorFilter: ColorFilter.mode(Colors.amber.shade400, BlendMode.srcIn),
@@ -180,7 +186,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: Theme.of(context).textTheme.bodyLarge,
                       textAlign: TextAlign.center,
                     ),
-                    // AJUSTE (3): Botón "Genial" eliminado
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -257,8 +262,13 @@ class _HomeScreenState extends State<HomeScreen> {
             points: _points,
           ),
           const SizedBox(height: 24.0),
-          DailyCheckupCard(onFillForm: _onFillDailyForm),
-          const SizedBox(height: 24.0),
+          
+          // AJUSTE: Renderizado condicional de la tarjeta del cuestionario
+          if (_isQuestionnaireAvailable) ...[
+            DailyCheckupCard(onFillForm: _onFillDailyForm),
+            const SizedBox(height: 24.0),
+          ],
+          
           if (_greeting != null) ...[
             RemindersCard(greeting: _greeting!),
             const SizedBox(height: 24.0),

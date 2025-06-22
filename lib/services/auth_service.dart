@@ -294,4 +294,30 @@ class AuthService {
       return {'success': false, 'message': 'Ocurrió un error inesperado. Revisa tu conexión.'};
     }
   }
+
+  static Future<bool> checkQuestionnaireAvailability() async {
+    final String? token = await getToken();
+    if (token == null) return false;
+
+    // El endpoint correcto, basado en tu _apiBaseUrl
+    final Uri url = Uri.parse('$_apiBaseUrl/questionnaire');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      // La tarjeta solo se muestra si la respuesta es 200 OK.
+      if (response.statusCode == 200) {
+        return true;
+      }
+      
+      // Si la respuesta es 422 (Unprocessable Entity) o cualquier otro error,
+      // consideramos que el cuestionario no está disponible.
+      return false;
+    } catch (e) {
+      print('Excepción al comprobar la disponibilidad del cuestionario: $e');
+      return false;
+    }
+  }
 }
