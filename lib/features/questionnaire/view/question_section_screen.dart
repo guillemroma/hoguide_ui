@@ -15,13 +15,13 @@ class _TimeDuration {
 class QuestionSectionScreen extends StatefulWidget {
   final String vertical;
   final Map<String, dynamic> payload;
-  final String progress;
+  final bool hasHabitsSection;
 
   const QuestionSectionScreen({
     super.key,
     required this.vertical,
     required this.payload,
-    required this.progress,
+    required this.hasHabitsSection,
   });
 
   @override
@@ -35,11 +35,20 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
   String? _errorMessage;
   final Map<int, dynamic> _answers = {};
   
-  final List<String> sections = const ['sueño', 'ejercicio', 'nutricion', 'bienestar_emocional'];
+  late final List<String> sections;
 
   @override
   void initState() {
     super.initState();
+    sections = [
+      'sueño',
+      'ejercicio',
+      'nutricion',
+      'bienestar_emocional'
+    ];
+    if (widget.hasHabitsSection) {
+      sections.add('user_question');
+    }
     _fetchQuestions();
   }
 
@@ -49,7 +58,6 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
       setState(() {
         if (result['success']) {
           _questions = result['data'];
-          // NOVEDAD: Inicializamos las respuestas con valores por defecto
           _initializeAnswers(); 
         } else {
           _errorMessage = result['message'];
@@ -59,16 +67,13 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     }
   }
 
-  // NOVEDAD: Este método pre-carga el mapa de respuestas
   void _initializeAnswers() {
     for (var question in _questions) {
       switch (question.answerType) {
         case 'duration':
-          // El rodillo empezará en 0 horas y 0 minutos
           _answers[question.id] = _TimeDuration(0, 0);
           break;
         case 'slider':
-          // El slider empezará en 0.0
           _answers[question.id] = 0.0;
           break;
         case 'text_form_field':
@@ -77,14 +82,15 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
         case 'checkbox':
           _answers[question.id] = <String>{};
           break;
+        // NOVEDAD: Se añade el caso para inicializar las respuestas de tipo 'switch'
+        case 'switch':
+          _answers[question.id] = false; // Por defecto, el interruptor está apagado
+          break;
         default:
-          // Para otros tipos, no asignamos valor por defecto
           break;
       }
     }
   }
-
-  // --- MÉTODOS PARA MANEJAR RESPUESTAS (sin cambios) ---
 
   void _handleSliderChange(int questionId, double value) {
     setState(() { _answers[questionId] = value; });
@@ -116,10 +122,14 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     setState(() { _answers[questionId] = value; });
   }
 
-  // --- LÓGICA DE NAVEGACIÓN Y ENVÍO FINAL (sin cambios) ---
-  
+  // NOVEDAD: Nuevo método para manejar el cambio de estado del interruptor
+  void _handleSwitchChange(int questionId, bool value) {
+    setState(() {
+      _answers[questionId] = value;
+    });
+  }
+
   void _onNext() async {
-    // ... (Este método no necesita cambios)
     final currentIndex = sections.indexOf(widget.vertical);
     final isLastSection = currentIndex == sections.length - 1;
 
@@ -135,6 +145,9 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
         content = [totalHours.toStringAsFixed(2)];
       } else if (answerValue is String && answerValue.isNotEmpty) {
         content = [answerValue];
+      // NOVEDAD: Se añade la lógica para formatear la respuesta booleana del switch a String
+      } else if (answerValue is bool) {
+        content = [answerValue.toString()]; // Convierte true a "true" y false a "false"
       }
       
       if (content.isNotEmpty) {
@@ -152,13 +165,12 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
 
     if (!isLastSection) {
       final nextSection = sections[currentIndex + 1];
-      final nextProgress = '${currentIndex + 3}/5';
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => QuestionSectionScreen(
             vertical: nextSection,
             payload: updatedPayload,
-            progress: nextProgress,
+            hasHabitsSection: widget.hasHabitsSection,
           ),
         ),
       );
@@ -183,17 +195,13 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     }
   }
 
-  // --- WIDGETS DE UI ---
-
-  // ... (build, _buildBody, _buildQuestionWidget y otros no necesitan cambios)
   @override
   Widget build(BuildContext context) {
-    final isLastSection = sections.indexOf(widget.vertical) == sections.length - 1;
     return Scaffold(
       appBar: AppBar(
         title: Text('Cuestionario: ${widget.vertical.toUpperCase()}'),
         actions: [
-          if (isLastSection)
+          if (sections.indexOf(widget.vertical) == sections.length - 1)
             IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
@@ -240,6 +248,9 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
       } else {
         questionInput = _buildRadioQuestion(question);
       }
+    // NOVEDAD: Se añade la condición para el nuevo tipo de pregunta 'switch'
+    } else if (question.answerType == 'switch') {
+      questionInput = _buildSwitchQuestion(question);
     } else {
       questionInput = Text('Tipo de pregunta no soportado: ${question.answerType}');
     }
@@ -268,10 +279,8 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     );
   }
 
-  // AJUSTE: El rodillo ahora lee el valor inicial del mapa _answers
   Widget _buildDurationPicker(Question question) {
     final theme = Theme.of(context);
-    // Ya no usamos putIfAbsent, el valor está garantizado
     final currentValue = _answers[question.id] as _TimeDuration;
 
     final hoursController = FixedExtentScrollController(initialItem: currentValue.hours);
@@ -288,16 +297,14 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     );
   }
 
-  // AJUSTE: El slider ahora empieza en 0 y lee el valor del mapa _answers
   Widget _buildSliderQuestion(Question question) {
-    // El valor está garantizado, ya no necesitamos un valor por defecto aquí
     final currentValue = _answers[question.id] as double;
     return Row(
       children: [
         Expanded(
           child: Slider(
             value: currentValue,
-            min: 0, // El slider ahora empieza en 0
+            min: 0,
             max: 10,
             divisions: 10,
             label: currentValue.toStringAsFixed(1),
@@ -329,8 +336,25 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
     );
   }
 
+  // NOVEDAD: Se añade el widget que construye el interruptor.
+  // Usamos CupertinoSwitch por su estética limpia, similar a la del picker de duración.
+  Widget _buildSwitchQuestion(Question question) {
+    final currentValue = _answers[question.id] as bool;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: CupertinoSwitch(
+        value: currentValue,
+        onChanged: (value) => _handleSwitchChange(question.id, value),
+      ),
+    );
+  }
+
   Widget _buildNextButton() {
-    final isLastSection = sections.indexOf(widget.vertical) == sections.length - 1;
+    final currentIndex = sections.indexOf(widget.vertical);
+    final totalSections = sections.length;
+    final isLastSection = currentIndex == totalSections - 1;
+    final progressText = '${currentIndex + 1}/$totalSections';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: SizedBox(
@@ -342,7 +366,7 @@ class _QuestionSectionScreenState extends State<QuestionSectionScreen> {
           child: _isSubmitting
               ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white))
               : Text(
-                  isLastSection ? 'Finalizar cuestionario' : 'Siguiente (${widget.progress})',
+                  isLastSection ? 'Finalizar cuestionario' : 'Siguiente ($progressText)',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
         ),

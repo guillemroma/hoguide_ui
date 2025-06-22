@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../features/questionnaire/models/question_model.dart';
 
-// --- MODELS ---
-
+// --- MODELS --- (Sin cambios)
 class ActionItem {
   final String title;
   final String description;
@@ -70,6 +69,7 @@ class Greeting {
 
 
 // --- SERVICE ---
+
 
 class AuthService {
   static const String _authBaseUrl = 'https://hoguide-737872d9cf3e.herokuapp.com/api/v1/auth';
@@ -238,8 +238,30 @@ class AuthService {
     }
   }
 
-  // --- QUESTIONNAIRE ---
+ // --- QUESTIONNAIRE ---
 
+  static Future<bool> checkHabitsSection() async {
+    final String? token = await getToken();
+    if (token == null) return false;
+    final Uri url = Uri.parse('$_apiBaseUrl/questions?vertical=user_question');
+    try {
+      final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> decodedBody = jsonDecode(response.body);
+        if (decodedBody.containsKey('user_questions') &&
+            decodedBody['user_questions'] is List &&
+            (decodedBody['user_questions'] as List).isNotEmpty) {
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      print('Excepción al comprobar la sección de hábitos: $e');
+      return false;
+    }
+  }
+
+  // NOVEDAD: Se modifica este método para manejar diferentes claves de respuesta
   static Future<Map<String, dynamic>> getQuestions(String vertical) async {
     final String? token = await getToken();
     if (token == null) return {'success': false, 'message': 'No autenticado', 'requiresAuth': true};
@@ -253,8 +275,19 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> decodedBody = jsonDecode(response.body);
-        // Parseamos la lista de preguntas que viene en la clave "general_questions"
-        final List<dynamic> questionData = decodedBody['general_questions'] ?? [];
+        
+        // ---- INICIO DE LA MODIFICACIÓN ----
+        // Lógica para seleccionar la clave correcta según la vertical
+        List<dynamic> questionData;
+        if (vertical == 'user_question') {
+          // Para la sección de hábitos, usamos la clave "user_questions"
+          questionData = decodedBody['user_questions'] ?? [];
+        } else {
+          // Para todas las demás secciones, usamos "general_questions"
+          questionData = decodedBody['general_questions'] ?? [];
+        }
+        // ---- FIN DE LA MODIFICACIÓN ----
+
         final List<Question> questions = questionData.map((data) => Question.fromJson(data as Map<String, dynamic>)).toList();
         return {'success': true, 'data': questions};
       } else {
@@ -281,7 +314,6 @@ class AuthService {
         body: jsonEncode(payload),
       );
 
-      // Consideramos éxito tanto 200 (OK) como 201 (Created)
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {'success': true, 'data': jsonDecode(response.body)};
       } else {
@@ -298,22 +330,15 @@ class AuthService {
   static Future<bool> checkQuestionnaireAvailability() async {
     final String? token = await getToken();
     if (token == null) return false;
-
-    // El endpoint correcto, basado en tu _apiBaseUrl
     final Uri url = Uri.parse('$_apiBaseUrl/questionnaire');
     try {
       final response = await http.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       );
-      
-      // La tarjeta solo se muestra si la respuesta es 200 OK.
       if (response.statusCode == 200) {
         return true;
       }
-      
-      // Si la respuesta es 422 (Unprocessable Entity) o cualquier otro error,
-      // consideramos que el cuestionario no está disponible.
       return false;
     } catch (e) {
       print('Excepción al comprobar la disponibilidad del cuestionario: $e');
