@@ -285,11 +285,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           const SizedBox(height: 24.0),
           PatternsCard(onTap: _onNavigateToPatterns),
-          const SizedBox(height: 24.0),
-          CommunitySupportSection(
-            onJoinWhatsApp: () => _launchURL('https://chat.whatsapp.com/D26ArgmVNovFF1DgJT1bVp'),
-            onSupportProject: () => _launchURL('https://patreon.com/user?u=64960324'),
-          ),
         ],
       ),
     );

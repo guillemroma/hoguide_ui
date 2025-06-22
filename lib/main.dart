@@ -52,7 +52,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
-        textTheme: GoogleFonts.interTextTheme(
+        textTheme: GoogleFonts.quicksandTextTheme(
           Theme.of(context).textTheme,
         ),
         scaffoldBackgroundColor: const Color(0xFFF3F4F6),
@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        textTheme: GoogleFonts.interTextTheme(
+        textTheme: GoogleFonts.quicksandTextTheme(
           Theme.of(context).textTheme,
         ).apply(
           bodyColor: const Color(0xFFE5E7EB),

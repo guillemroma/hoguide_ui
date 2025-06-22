@@ -1,3 +1,5 @@
+// lib/features/home/widgets/locked_feature_card.dart (MODIFICADO)
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -23,7 +25,7 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
   late ActionState _currentState = ActionState.initializing;
   ActionItem? _finalActionItem;
   Timer? _timer;
-  
+
   bool _isClaiming = false;
   bool _canClaimManually = false;
 
@@ -37,7 +39,7 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
     final actionItem = await AuthService.fetchFirstActionItem(widget.authToken);
 
     if (!mounted) return;
-    
+
     if (actionItem == null) {
       setState(() {
         _currentState = (widget.userPoints >= LockedFeatureCard.requiredPoints)
@@ -45,14 +47,14 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
             : ActionState.locked;
       });
     } else {
-       if (actionItem.description == 'in_progress') {
-         _showLoadingAndStartTimer();
-       } else {
-         setState(() {
-           _currentState = ActionState.success;
-           _finalActionItem = actionItem;
-         });
-       }
+      if (actionItem.description == 'in_progress') {
+        _showLoadingAndStartTimer();
+      } else {
+        setState(() {
+          _currentState = ActionState.success;
+          _finalActionItem = actionItem;
+        });
+      }
     }
   }
 
@@ -85,10 +87,10 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
 
   void _showLoadingAndStartTimer() {
     if (!mounted) return;
-    
+
     setState(() {
       _currentState = ActionState.loading;
-      _canClaimManually = false; 
+      _canClaimManually = false;
     });
 
     _timer?.cancel();
@@ -98,7 +100,7 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
       }
     });
   }
-  
+
   Future<void> _initiateAndStartTimer() async {
     final bool success = await AuthService.generateActionItem(widget.authToken);
 
@@ -120,7 +122,7 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
     if (_isClaiming) return;
 
     setState(() => _isClaiming = true);
-    
+
     final actionItem = await AuthService.fetchFirstActionItem(widget.authToken);
 
     if (!mounted) return;
@@ -154,32 +156,29 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
       });
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     switch (_currentState) {
       case ActionState.initializing:
         return const DashboardCard(child: Center(child: CircularProgressIndicator()));
-      
+
       case ActionState.locked:
         return RepaintBoundary(
-          child: _LockedView(userPoints: widget.userPoints, onGenerate: () {})
-        );
-      
+            child: _LockedView(userPoints: widget.userPoints, onGenerate: () {}));
+
       case ActionState.initial:
         return RepaintBoundary(
-          child: _LockedView(userPoints: widget.userPoints, onGenerate: _initiateAndStartTimer)
-        );
-      
+            child: _LockedView(userPoints: widget.userPoints, onGenerate: _initiateAndStartTimer));
+
       case ActionState.loading:
         return RepaintBoundary(
-          child: _UnderConstructionView(
-            canClaimManually: _canClaimManually,
-            isClaiming: _isClaiming,
-            onClaim: _claimReward,
-          )
-        );
-      
+            child: _UnderConstructionView(
+          canClaimManually: _canClaimManually,
+          isClaiming: _isClaiming,
+          onClaim: _claimReward,
+        ));
+
       case ActionState.success:
         return _finalActionItem != null
             ? RepaintBoundary(child: _ActiveActionItemView(item: _finalActionItem!))
@@ -190,16 +189,18 @@ class _LockedFeatureCardState extends State<LockedFeatureCard> {
 
 // --- WIDGETS DE UI ---
 
+// ============== CAMBIOS APLICADOS AQUÍ ==============
 class _LockedView extends StatelessWidget {
   final int userPoints;
   final VoidCallback onGenerate;
-  const _LockedView({ required this.userPoints, required this.onGenerate });
-  
+  const _LockedView({required this.userPoints, required this.onGenerate});
+
   @override
   Widget build(BuildContext context) {
     final bool canGenerate = userPoints >= LockedFeatureCard.requiredPoints;
-    final double progress = canGenerate ? 1.0 : (userPoints / LockedFeatureCard.requiredPoints).clamp(0.0, 1.0);
-    
+    final double progress =
+        canGenerate ? 1.0 : (userPoints / LockedFeatureCard.requiredPoints).clamp(0.0, 1.0);
+
     return DottedBorder(
       borderType: BorderType.RRect,
       radius: const Radius.circular(16.0),
@@ -212,42 +213,64 @@ class _LockedView extends StatelessWidget {
         showShadow: false,
         onTap: canGenerate ? onGenerate : null,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.lock_outline, size: 32.0, color: Colors.indigo.shade400),
-              const SizedBox(width: 16.0),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Hábitos', style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4.0),
-                Text('Consigue ${LockedFeatureCard.requiredPoints} Hopoints y desbloquea tu plan.', style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
-              ])),
-              if (canGenerate)
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    onPressed: onGenerate,
-                    icon: Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.indigo.shade600,
-                    ),
-                    tooltip: 'Generar Hábito',
-                  ),
+          // (1) Fila superior con icono, título y botón (condicional)
+          Row(children: [
+            Icon(Icons.lock_outline, size: 32.0, color: Colors.indigo.shade400),
+            const SizedBox(width: 16.0),
+            Text('Hábitos',
+                style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold)),
+            const Spacer(),
+            if (canGenerate)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
                 ),
-            ]
-          ),
+                child: IconButton(
+                  onPressed: onGenerate,
+                  icon: Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.indigo.shade600,
+                  ),
+                  tooltip: 'Generar Hábito',
+                ),
+              ),
+          ]),
+          const SizedBox(height: 4.0),
+
+          // (2) Subtítulo en una nueva línea
+          Text(
+              'Consigue ${LockedFeatureCard.requiredPoints} Hopoints y desbloquea tu plan.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium!
+                  .copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
           const SizedBox(height: 16.0),
-          ClipRRect(borderRadius: BorderRadius.circular(10.0), child: LinearProgressIndicator(value: progress, backgroundColor: Colors.white.withOpacity(0.7), color: Colors.deepPurple, minHeight: 10)),
+          
+          // Barra de progreso
+          ClipRRect(
+              borderRadius: BorderRadius.circular(10.0),
+              child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.white.withOpacity(0.7),
+                  color: Colors.deepPurple,
+                  minHeight: 10)),
           const SizedBox(height: 8.0),
-          Text('$userPoints / ${LockedFeatureCard.requiredPoints} Hopoints', style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8), fontWeight: FontWeight.bold)),
+          
+          // (3) Contador alineado a la derecha
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text('$userPoints / ${LockedFeatureCard.requiredPoints} Hopoints',
+                style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    fontWeight: FontWeight.bold)),
+          ),
         ]),
       ),
     );
   }
 }
+// ============== FIN DE LOS CAMBIOS ==============
 
 class _ActiveActionItemView extends StatelessWidget {
   final ActionItem item;
@@ -283,27 +306,28 @@ class _ActiveActionItemView extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   description,
-                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
-                  ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium!
+                      .copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                 ),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12)
-                  ),
+                  decoration:
+                      BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
                   child: Row(
                     children: [
-                      Icon(Icons.add_task, color: Colors.green.shade700, size: 20,),
+                      Icon(
+                        Icons.add_task,
+                        color: Colors.green.shade700,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'El Hábito ha sido añadido a tu Cuestionario Diario.',
-                          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                            color: Colors.green.shade800
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.green.shade800),
                         ),
                       ),
                     ],
@@ -316,30 +340,23 @@ class _ActiveActionItemView extends StatelessWidget {
       },
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final double progress = item.totalCount > 0 ? (item.currentCount / item.totalCount).clamp(0.0, 1.0) : 0.0;
+    
     return DashboardCard(
+      onTap: () => _showDescriptionDialog(context, item.description),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.check_circle_outline, size: 32.0, color: Colors.green.shade500),
-            const SizedBox(width: 16.0),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // UI-UPDATE: "Action Item Activo" ahora es el título principal.
-              Text(
-                'Hábito Activo',
-                style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold)
-              ),
-              const SizedBox(height: 4.0),
-              // UI-UPDATE: Texto genérico como subtítulo.
-              Text(
-                'Clica para obtener más información.',
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
-              ),
-            ])),
+            Icon(Icons.check_circle, size: 28.0, color: Colors.green.shade500),
+            const SizedBox(width: 12.0),
+            Text(
+              'Hábito Activo',
+              style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold)
+            ),
+            const Spacer(), 
             IconButton(
               icon: Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
               onPressed: () => _showDescriptionDialog(context, item.description),
@@ -347,10 +364,32 @@ class _ActiveActionItemView extends StatelessWidget {
             )
           ]
         ),
+        const SizedBox(height: 4.0),
+        
+        Text(
+          'Clica para obtener más información.',
+          style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+        ),
         const SizedBox(height: 16.0),
-        ClipRRect(borderRadius: BorderRadius.circular(10.0), child: LinearProgressIndicator(value: progress, backgroundColor: Colors.grey.shade300, color: Colors.green, minHeight: 10)),
+        
+        ClipRRect(
+            borderRadius: BorderRadius.circular(10.0),
+            child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.grey.shade300,
+                color: Colors.green,
+                minHeight: 10)),
         const SizedBox(height: 8.0),
-        Text('${item.currentCount} / ${item.totalCount} Completados', style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8), fontWeight: FontWeight.bold)),
+        
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '${item.currentCount} / ${item.totalCount} Completados',
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                fontWeight: FontWeight.bold)
+          ),
+        ),
       ]),
     );
   }
@@ -366,13 +405,13 @@ class _UnderConstructionView extends StatelessWidget {
     required this.isClaiming,
     required this.onClaim,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return DashboardCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center, 
-        mainAxisAlignment: MainAxisAlignment.center, 
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,9 +422,13 @@ class _UnderConstructionView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Hábito en construcción...', style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold)),
+                    Text('Hábito en construcción...',
+                        style: Theme.of(context).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4.0),
-                    Text('Tu Hábito personalizado se está generando. Este proceso puede tardar unos minutos...', style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+                    Text(
+                        'Tu Hábito personalizado se está generando. Este proceso puede tardar unos minutos...',
+                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
                   ],
                 ),
               ),
@@ -396,39 +439,44 @@ class _UnderConstructionView extends StatelessWidget {
                     return ScaleTransition(scale: animation, child: child);
                   },
                   child: canClaimManually
-                    ? Container(
-                        key: const ValueKey('claim_icon'),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
-                          shape: BoxShape.circle,
+                      ? Container(
+                          key: const ValueKey('claim_icon'),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: isClaiming
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.green),
+                                  ),
+                                )
+                              : IconButton(
+                                  onPressed: onClaim,
+                                  icon: const Icon(Icons.sync, color: Colors.green),
+                                  tooltip: 'Reclamar manualmente',
+                                ),
+                        )
+                      : Padding(
+                          key: const ValueKey('loader_placeholder'),
+                          padding: const EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                          ),
                         ),
-                        child: isClaiming 
-                          ? const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: SizedBox(
-                                width: 24, height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.green),
-                              ),
-                            )
-                          : IconButton(
-                              onPressed: onClaim,
-                              icon: const Icon(Icons.sync, color: Colors.green),
-                              tooltip: 'Reclamar manualmente',
-                            ),
-                      )
-                    : Padding(
-                      key: const ValueKey('loader_placeholder'),
-                      padding: const EdgeInsets.all(12.0),
-                      child: SizedBox(
-                        width: 24, height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
-                      ),
-                    ),
                 ),
               ),
             ],
           ),
-      ]),
+        ],
+      ),
     );
   }
 }

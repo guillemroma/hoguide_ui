@@ -1,3 +1,5 @@
+// dashboard_card.dart (Sin cambios)
+
 import 'package:flutter/material.dart';
 
 class DashboardCard extends StatelessWidget {
